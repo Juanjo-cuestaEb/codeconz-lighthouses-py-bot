@@ -25,76 +25,158 @@ class BotGame:
         self.initial_state = None
         self.turn_states = []
         self.countT = 1
+        self.TARGET_LIGHTHOUSES = [(5, 11), (7, 13), (7, 10)]
+        self.current_target_index = 0
 
     def new_turn_action(self, turn: game_pb2.NewTurn) -> game_pb2.NewAction:
         cx, cy = turn.Position.X, turn.Position.Y
 
-        lighthouses = dict()
-        for lh in turn.Lighthouses:
-            lighthouses[(lh.Position.X, lh.Position.Y)] = lh
+        # Determine the current strategic target lighthouse coordinates
+        current_target_coords = self.TARGET_LIGHTHOUSES[self.current_target_index]
+        tx, ty = current_target_coords
 
-        # Si estamos en un faro...
-        if (cx, cy) in lighthouses:
-            # Conectar con faro remoto válido si podemos
-            if lighthouses[(cx, cy)].Owner == self.player_num:
-                possible_connections = []
-                for dest in lighthouses:
-                    # No conectar con sigo mismo
-                    # No conectar si no tenemos la clave
-                    # No conectar si ya existe la conexión
-                    # No conectar si no controlamos el destino
-                    # Nota: no comprobamos si la conexión se cruza.
-                    if (
-                        dest != (cx, cy)
-                        and lighthouses[dest].HaveKey
-                        and [cx, cy] not in lighthouses[dest].Connections
-                        and lighthouses[dest].Owner == self.player_num
-                    ):
-                        possible_connections.append(dest)
+        action_to_perform = None
 
-                if possible_connections:
-                    possible_connection = random.choice(possible_connections)
-                    action = game_pb2.NewAction(
-                        Action=game_pb2.CONNECT,
-                        Destination=game_pb2.Position(
-                            X=possible_connection[0], Y=possible_connection[1]
-                        ),
-                    )
-                    bgt = BotGameTurn(turn, action)
-                    self.turn_states.append(bgt)
+        
 
-                    self.countT += 1
-                    return action
+        # Check if we are currently at the target lighthouse
+        if (cx, cy) == current_target_coords:
+            # Example:
+            energy = random.randrange(turn.Energy + 1)
+            action = game_pb2.NewAction(
+                Action=game_pb2.ATTACK,
+                Energy=energy,
+                Destination=game_pb2.Position(X=turn.Position.X, Y=turn.Position.Y),
+            )
+            bgt = BotGameTurn(turn, action)
+            self.turn_states.append(bgt)
 
-            # 60% de posibilidades de atacar el faro
-            if random.randrange(100) < 60:
-                energy = random.randrange(turn.Energy + 1)
-                action = game_pb2.NewAction(
-                    Action=game_pb2.ATTACK,
-                    Energy=energy,
-                    Destination=game_pb2.Position(X=turn.Position.X, Y=turn.Position.Y),
-                )
-                bgt = BotGameTurn(turn, action)
-                self.turn_states.append(bgt)
+            self.countT += 1
+             # After attacking, update our state to target the next lighthouse in the sequence for the *next* turn.
+            self.current_target_index = (self.current_target_index + 1) % len(self.TARGET_LIGHTHOUSES)
+            return action
+        else:
+            # We are not at the current target lighthouse. We need to move towards it.
+            # Simple cardinal movement: one step towards the target.
+            move_to_x, move_to_y = cx, cy # By default, stay if no move needed (should not happen here)
 
-                self.countT += 1
-                return action
+            # Determine preferred direction of movement
+            # Prioritize moving along the X-axis, then Y-axis.
+            # This is a basic movement algorithm; more complex pathfinding (e.g., A*)
+            # isn't needed for an open map with single-square moves.
+            if cx < tx:
+                move_to_x = cx + 1
+            elif cx > tx:
+                move_to_x = cx - 1
+            elif cy < ty: # cx == tx, so move in y
+                move_to_y = cy + 1
+            elif cy > ty: # cx == tx, so move in y
+                move_to_y = cy - 1
+            
+            # Ensure we actually make a move if not at the target
+            if (move_to_x, move_to_y) == (cx, cy) and (cx,cy) != (tx,ty):
+                # This case should ideally not be reached if cx,cy != tx,ty
+                # but as a fallback, if primary logic didn't change position, try other axis
+                if cy < ty: move_to_y = cy + 1
+                elif cy > ty: move_to_y = cy - 1
+                elif cx < tx: move_to_x = cx + 1
+                elif cx > tx: move_to_x = cx - 1
 
-        # Mover aleatoriamente
-        moves = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
-        move = random.choice(moves)
-        action = game_pb2.NewAction(
-            Action=game_pb2.MOVE,
-            Destination=game_pb2.Position(
-                X=turn.Position.X + move[0], Y=turn.Position.Y + move[1]
-            ),
-        )
 
-        bgt = BotGameTurn(turn, action)
-        self.turn_states.append(bgt)
+            # Create a MOVE action.
+            # Assuming ActionType.MOVE exists and MoveTo takes the specific square to move to.
+            # action_to_perform = game_pb2.NewAction(
+            #     ActionType=game_pb2.ActionType.MOVE,
+            #     MoveTo=game_pb2.Position(X=move_to_x, Y=move_to_y)
+            # )
+            action = game_pb2.NewAction(
+                Action=game_pb2.MOVE,
+                Destination=game_pb2.Position(
+                    X=move_to_x, Y=move_to_y
+                ),
+            )
 
-        self.countT += 1
-        return action
+            bgt = BotGameTurn(turn, action)
+            self.turn_states.append(bgt)
+
+            self.countT += 1
+            return action
+            
+
+
+        # lighthouses = dict()
+        # for lh in turn.Lighthouses:
+        #     lighthouses[(lh.Position.X, lh.Position.Y)] = lh
+            
+
+
+        # # Si estamos en un faro...
+        # if (cx, cy) in lighthouses:
+
+
+
+
+
+        #     # Conectar con faro remoto válido si podemos
+        #     if lighthouses[(cx, cy)].Owner == self.player_num:
+        #         possible_connections = []
+        #         for dest in lighthouses:
+        #             # No conectar con sigo mismo
+        #             # No conectar si no tenemos la clave
+        #             # No conectar si ya existe la conexión
+        #             # No conectar si no controlamos el destino
+        #             # Nota: no comprobamos si la conexión se cruza.
+        #             if (
+        #                 dest != (cx, cy)
+        #                 and lighthouses[dest].HaveKey
+        #                 and [cx, cy] not in lighthouses[dest].Connections
+        #                 and lighthouses[dest].Owner == self.player_num
+        #             ):
+        #                 possible_connections.append(dest)
+
+        #         if possible_connections:
+        #             possible_connection = random.choice(possible_connections)
+        #             action = game_pb2.NewAction(
+        #                 Action=game_pb2.CONNECT,
+        #                 Destination=game_pb2.Position(
+        #                     X=possible_connection[0], Y=possible_connection[1]
+        #                 ),
+        #             )
+        #             bgt = BotGameTurn(turn, action)
+        #             self.turn_states.append(bgt)
+
+        #             self.countT += 1
+        #             return action
+
+        #     # 60% de posibilidades de atacar el faro
+        #     if random.randrange(100) < 60:
+        #         energy = random.randrange(turn.Energy + 1)
+        #         action = game_pb2.NewAction(
+        #             Action=game_pb2.ATTACK,
+        #             Energy=energy,
+        #             Destination=game_pb2.Position(X=turn.Position.X, Y=turn.Position.Y),
+        #         )
+        #         bgt = BotGameTurn(turn, action)
+        #         self.turn_states.append(bgt)
+
+        #         self.countT += 1
+        #         return action
+
+        # # Mover aleatoriamente
+        # moves = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
+        # move = random.choice(moves)
+        # action = game_pb2.NewAction(
+        #     Action=game_pb2.MOVE,
+        #     Destination=game_pb2.Position(
+        #         X=turn.Position.X + move[0], Y=turn.Position.Y + move[1]
+        #     ),
+        # )
+
+        # bgt = BotGameTurn(turn, action)
+        # self.turn_states.append(bgt)
+
+        # self.countT += 1
+        # return action
 
 
 class BotComs:
