@@ -27,6 +27,7 @@ class BotGame:
         self.countT = 1
         self.TARGET_LIGHTHOUSES = [(5, 12), (7, 13), (7, 10)]
         self.current_target_index = 0
+        self.attacked_lighthouse = 0
 
     def new_turn_action(self, turn: game_pb2.NewTurn) -> game_pb2.NewAction:
         cx, cy = turn.Position.X, turn.Position.Y
@@ -36,10 +37,15 @@ class BotGame:
         tx, ty = current_target_coords
 
         action_to_perform = None
+
+        
+
+
         # Check if we are currently at the target lighthouse
         if (cx, cy) == current_target_coords:
             # Example:
-            energy = random.randrange(turn.Energy + 1)
+            #energy = random.randrange(turn.Energy + 1)
+            energy = turn.Energy  # Use all available energy for the attack
             action = game_pb2.NewAction(
                 Action=game_pb2.ATTACK,
                 Energy=energy,
@@ -51,6 +57,16 @@ class BotGame:
             self.countT += 1
              # After attacking, update our state to target the next lighthouse in the sequence for the *next* turn.
             self.current_target_index = (self.current_target_index + 1) % len(self.TARGET_LIGHTHOUSES)
+
+            # Record attacking lighthouse
+            if (cx, cy) == (7, 13):
+                attacked_lighthouse = 2
+            elif (cx, cy) == (7, 10):
+                attacked_lighthouse = 3
+            else:
+                attacked_lighthouse = 1
+
+
             return action
         else:
             # We are not at the current target lighthouse. We need to move towards it.
@@ -114,50 +130,50 @@ class BotGame:
 
 
 
-        #     # Conectar con faro remoto válido si podemos
-        #     if lighthouses[(cx, cy)].Owner == self.player_num:
-        #         possible_connections = []
-        #         for dest in lighthouses:
-        #             # No conectar con sigo mismo
-        #             # No conectar si no tenemos la clave
-        #             # No conectar si ya existe la conexión
-        #             # No conectar si no controlamos el destino
-        #             # Nota: no comprobamos si la conexión se cruza.
-        #             if (
-        #                 dest != (cx, cy)
-        #                 and lighthouses[dest].HaveKey
-        #                 and [cx, cy] not in lighthouses[dest].Connections
-        #                 and lighthouses[dest].Owner == self.player_num
-        #             ):
-        #                 possible_connections.append(dest)
+            # Conectar con faro remoto válido si podemos
+            if lighthouses[(cx, cy)].Owner == self.player_num:
+                possible_connections = []
+                for dest in lighthouses:
+                    # No conectar con sigo mismo
+                    # No conectar si no tenemos la clave
+                    # No conectar si ya existe la conexión
+                    # No conectar si no controlamos el destino
+                    # Nota: no comprobamos si la conexión se cruza.
+                    if (
+                        dest != (cx, cy)
+                        and lighthouses[dest].HaveKey
+                        and [cx, cy] not in lighthouses[dest].Connections
+                        and lighthouses[dest].Owner == self.player_num
+                    ):
+                        possible_connections.append(dest)
 
-        #         if possible_connections:
-        #             possible_connection = random.choice(possible_connections)
-        #             action = game_pb2.NewAction(
-        #                 Action=game_pb2.CONNECT,
-        #                 Destination=game_pb2.Position(
-        #                     X=possible_connection[0], Y=possible_connection[1]
-        #                 ),
-        #             )
-        #             bgt = BotGameTurn(turn, action)
-        #             self.turn_states.append(bgt)
+                if possible_connections:
+                    possible_connection = random.choice(possible_connections)
+                    action = game_pb2.NewAction(
+                        Action=game_pb2.CONNECT,
+                        Destination=game_pb2.Position(
+                            X=possible_connection[0], Y=possible_connection[1]
+                        ),
+                    )
+                    bgt = BotGameTurn(turn, action)
+                    self.turn_states.append(bgt)
 
-        #             self.countT += 1
-        #             return action
+                    self.countT += 1
+                    return action
 
-        #     # 60% de posibilidades de atacar el faro
-        #     if random.randrange(100) < 60:
-        #         energy = random.randrange(turn.Energy + 1)
-        #         action = game_pb2.NewAction(
-        #             Action=game_pb2.ATTACK,
-        #             Energy=energy,
-        #             Destination=game_pb2.Position(X=turn.Position.X, Y=turn.Position.Y),
-        #         )
-        #         bgt = BotGameTurn(turn, action)
-        #         self.turn_states.append(bgt)
+            # 60% de posibilidades de atacar el faro
+            if random.randrange(100) < 60:
+                energy = random.randrange(turn.Energy + 1)
+                action = game_pb2.NewAction(
+                    Action=game_pb2.ATTACK,
+                    Energy=energy,
+                    Destination=game_pb2.Position(X=turn.Position.X, Y=turn.Position.Y),
+                )
+                bgt = BotGameTurn(turn, action)
+                self.turn_states.append(bgt)
 
-        #         self.countT += 1
-        #         return action
+                self.countT += 1
+                return action
 
         # # Mover aleatoriamente
         # moves = ((-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1))
