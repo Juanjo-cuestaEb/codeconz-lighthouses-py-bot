@@ -25,7 +25,7 @@ class BotGame:
         self.initial_state = None
         self.turn_states = []
         self.countT = 1
-        self.TARGET_LIGHTHOUSES = [(5, 11), (7, 13), (7, 10)]
+        self.TARGET_LIGHTHOUSES = [(5, 12), (7, 13), (7, 10)]
         self.current_target_index = 0
 
     def new_turn_action(self, turn: game_pb2.NewTurn) -> game_pb2.NewAction:
@@ -36,9 +36,6 @@ class BotGame:
         tx, ty = current_target_coords
 
         action_to_perform = None
-
-        
-
         # Check if we are currently at the target lighthouse
         if (cx, cy) == current_target_coords:
             # Example:
