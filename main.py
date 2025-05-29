@@ -25,7 +25,7 @@ class BotGame:
         self.initial_state = None
         self.turn_states = []
         self.countT = 1
-        self.TARGET_LIGHTHOUSES = [(5, 12), (7, 13), (7, 10)]
+        self.TARGET_LIGHTHOUSES = [(5, 12), (7, 13), (7, 10), (4, 9), (4, 15)]
         self.current_target_index = 0
         self.attacked_lighthouse = 0
 
